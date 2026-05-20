@@ -836,7 +836,14 @@ const displayMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
 // Extraer información actual
 const currentDayData = diary[selectedDate] || { sessions: {}, completed: {} };
-const currentRoutineExercises = useMemo(() => {
+/** Rutina viva para editar en pestaña Rutina (siempre la lista actual). */
+const currentRoutineExercises = useMemo(
+  () => routines[activeRoutineId] || [],
+  [routines, activeRoutineId]
+);
+
+/** Ejercicios mostrados en Home según el día (snapshot si el día pasado está bloqueado). */
+const workoutDayExercises = useMemo(() => {
   const day = diary[selectedDate];
   const rid = day?.routineId || activeRoutineId;
   if (isDayLocked && day) {
@@ -1011,7 +1018,7 @@ reader.readAsText(file, 'UTF-8');
     updateSessionData,
     toggleComplete,
     fullCalendarGrid, displayMonthName,
-    currentDayData, currentRoutineExercises, currentBlock, currentRoutineName,
+    currentDayData, currentRoutineExercises, workoutDayExercises, currentBlock, currentRoutineName,
     loadRecommendedRoutines,
     exportBackup,
     importBackup,

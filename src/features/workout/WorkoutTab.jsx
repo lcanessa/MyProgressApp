@@ -37,7 +37,7 @@ export default function WorkoutTab({ app }) {
             Ve a &quot;Rutina&quot; y tocá + para crear una
           </p>
         </div>
-      ) : app.currentRoutineExercises.length === 0 ? (
+      ) : app.workoutDayExercises.length === 0 ? (
         <div
           className={`rounded-3xl p-10 text-center border mt-8 shadow-xl ${app.isDark ? 'bg-[#121212] border-white/5' : 'bg-white border-slate-100'}`}
         >
@@ -54,7 +54,7 @@ export default function WorkoutTab({ app }) {
           )}
         </div>
       ) : (
-        app.currentRoutineExercises.map((ex, exIdx) => {
+        app.workoutDayExercises.map((ex, exIdx) => {
           const exKey = `${dayRoutineId}-${exIdx}`;
           const isCompleted = !!app.currentDayData.completed?.[exKey];
           const isExpanded = app.expandedEx === exIdx;
@@ -151,7 +151,7 @@ export default function WorkoutTab({ app }) {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        app.openRestTimer(90);
+                        app.startTimer(90);
                       }}
                       className={`p-2 rounded-xl transition-colors border ${
                         app.isDark
