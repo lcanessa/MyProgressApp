@@ -46,6 +46,7 @@ export default function App() {
 
       {app.activeTab === 'workout' && (
         <RestTimer
+          isOpen={app.isRestTimerOpen}
           isRunning={app.isTimerRunning}
           timeRemaining={app.timerRemaining}
           isFinished={app.isTimerFinished}

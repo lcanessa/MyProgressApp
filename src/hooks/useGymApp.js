@@ -25,6 +25,13 @@ import {
   sanitizeHistory,
 } from '../utils/sessionValues';
 import {
+  getTodayISO,
+  buildExerciseSnapshot,
+  getLockedDayExercises,
+  isPastCompletedLockedDay,
+  withDaySnapshotIfComplete,
+} from '../utils/diaryDayLock';
+import {
   resolveExerciseVideo,
   resolveExerciseVideoAsync,
   findVideoIdForName,
@@ -131,6 +138,7 @@ const [editingExData, setEditingExData] = useState({ name: '', muscle: '' });
 const [selectedExIds, setSelectedExIds] = useState([]);
 
 // Timer State
+const [isRestTimerOpen, setIsRestTimerOpen] = useState(false);
 const [timerRemaining, setTimerRemaining] = useState(0);
 const [isTimerRunning, setIsTimerRunning] = useState(false);
 const [isTimerFinished, setIsTimerFinished] = useState(false);
@@ -139,11 +147,20 @@ const isTimerRunningRef = useRef(false);
 const soundEnabledRef = useRef(true);
 const TIMER_END_KEY = 'myprogress_timer_end_ts';
 
+const todayISO = getTodayISO();
+
+const isDayLocked = useMemo(() => {
+  const day = diary[selectedDate];
+  return isPastCompletedLockedDay(selectedDate, day, routines, todayISO);
+}, [selectedDate, diary, routines, todayISO]);
+
 // --- LÓGICA DE ALIAS AUTOMÁTICO ---
 const workoutProgress = useMemo(() => {
 const dayData = diary[selectedDate] || { completed: {} };
 const rid = dayData.routineId || activeRoutineId;
-const exercises = routines[rid] || [];
+const exercises = isDayLocked
+  ? getLockedDayExercises(dayData, rid, routines)
+  : routines[rid] || [];
 const total = exercises.length;
 if (total === 0) return { total: 0, completed: 0, percent: 0, isComplete: false };
 const completed = exercises.filter((_, exIdx) => dayData.completed?.[`${rid}-${exIdx}`] === true).length;
@@ -153,7 +170,7 @@ completed,
 percent: Math.round((completed / total) * 100),
 isComplete: completed === total,
 };
-}, [routines, activeRoutineId, diary, selectedDate]);
+}, [routines, activeRoutineId, diary, selectedDate, isDayLocked]);
 
 const dismissCelebration = useCallback(() => {
 if (celebrationTimerRef.current) {
@@ -195,6 +212,32 @@ return;
 
 wasCompleteForContextRef.current = workoutProgress.isComplete;
 }, [workoutProgress.isComplete, workoutProgress.total, activeTab, selectedDate, activeRoutineId, triggerCelebration, dismissCelebration]);
+
+useEffect(() => {
+  if (!workoutProgress.isComplete || workoutProgress.total === 0) return;
+
+  setDiary((prev) => {
+    const day = prev[selectedDate];
+    if (!day) return prev;
+    const rid = day.routineId || activeRoutineId;
+    const nextDay = withDaySnapshotIfComplete(day, rid, routines);
+    if (nextDay === day) return prev;
+    return { ...prev, [selectedDate]: nextDay };
+  });
+}, [workoutProgress.isComplete, workoutProgress.total, selectedDate, activeRoutineId, routines]);
+
+useEffect(() => {
+  if (!isDayLocked) return;
+
+  setDiary((prev) => {
+    const day = prev[selectedDate];
+    if (!day || day.exerciseSnapshot?.length) return prev;
+    const rid = day.routineId || activeRoutineId;
+    const snap = buildExerciseSnapshot(getLockedDayExercises(day, rid, routines));
+    if (!snap.length) return prev;
+    return { ...prev, [selectedDate]: { ...day, locked: true, exerciseSnapshot: snap } };
+  });
+}, [isDayLocked, selectedDate, activeRoutineId, routines]);
 
 const getAlias = useCallback((blockId) => {
 const block = routineBlocks.find(b => b.id === blockId);
@@ -248,6 +291,11 @@ setActiveRoutineId(targetId ?? null);
 if (!targetId) return prev;
 
 const existing = prev[newDateStr] || { sessions: {}, completed: {} };
+
+if (isPastCompletedLockedDay(newDateStr, existing, routines, todayISO)) {
+  return prev;
+}
+
 const sessions = prefillDaySessions(prev, newDateStr, targetId, routines);
 const completed = existing.completed || {};
 
@@ -265,7 +313,7 @@ return {
 };
 });
 setExpandedEx(null);
-}, [activeBlocks, routines]);
+}, [activeBlocks, routines, todayISO]);
 
 // Limpia datos viejos hardcodeados (rutinas/diario v27)
 useEffect(() => {
@@ -347,10 +395,11 @@ useEffect(() => {
   if (!saved) return;
   const remaining = Math.ceil((Number(saved) - Date.now()) / 1000);
   if (remaining <= 0) {
+    setIsRestTimerOpen(true);
     setIsTimerFinished(true);
     handleTimerFinished();
-    setTimeout(() => setIsTimerFinished(false), 6000);
   } else {
+    setIsRestTimerOpen(true);
     setTimerRemaining(remaining);
     setIsTimerRunning(true);
     startTimerKeepAlive();
@@ -369,10 +418,11 @@ useEffect(() => {
     if (remaining <= 0) {
       setIsTimerRunning(false);
       setTimerRemaining(0);
+      setIsRestTimerOpen(true);
       setIsTimerFinished(true);
       handleTimerFinished();
-      setTimeout(() => setIsTimerFinished(false), 6000);
     } else {
+      setIsRestTimerOpen(true);
       setTimerRemaining(remaining);
       startTimerKeepAlive();
     }
@@ -390,13 +440,13 @@ interval = setInterval(() => { setTimerRemaining(prev => prev - 1); }, 1000);
 setIsTimerRunning(false);
 setIsTimerFinished(true);
 handleTimerFinished();
-setTimeout(() => { setIsTimerFinished(false); }, 6000);
 }
 return () => clearInterval(interval);
 }, [isTimerRunning, timerRemaining, handleTimerFinished]);
 
 const startTimer = async (seconds = DEFAULT_REST_SECONDS) => {
   initAudio();
+  setIsRestTimerOpen(true);
   setIsTimerFinished(false);
   setTimerRemaining(seconds);
   setIsTimerRunning(true);
@@ -406,6 +456,7 @@ const startTimer = async (seconds = DEFAULT_REST_SECONDS) => {
 };
 const openRestTimer = (seconds = DEFAULT_REST_SECONDS) => {
   initAudio();
+  setIsRestTimerOpen(true);
   setIsTimerFinished(false);
   setTimerRemaining(seconds);
   setIsTimerRunning(false);
@@ -414,6 +465,7 @@ const openRestTimer = (seconds = DEFAULT_REST_SECONDS) => {
 };
 const setRestDuration = async (seconds) => {
   initAudio();
+  setIsRestTimerOpen(true);
   setIsTimerFinished(false);
   setTimerRemaining(seconds);
   if (isTimerRunningRef.current) {
@@ -427,6 +479,7 @@ const stopTimer = () => {
   stopTimerKeepAlive();
 };
 const closeTimer = () => {
+  setIsRestTimerOpen(false);
   setIsTimerRunning(false);
   setTimerRemaining(0);
   setIsTimerFinished(false);
@@ -449,7 +502,7 @@ const toggleSound = () => { initAudio(); setSoundEnabled(!soundEnabled); };
 
 const prefillExerciseIfNeeded = useCallback(
 (exIdx) => {
-if (!activeRoutineId || !selectedDate) return;
+if (!activeRoutineId || !selectedDate || isDayLocked) return;
 setDiary((prev) => {
 const existing = prev[selectedDate] || { sessions: {}, completed: {} };
 const sessions = prefillExerciseSessions(prev, selectedDate, activeRoutineId, exIdx, routines);
@@ -465,10 +518,11 @@ completed: existing.completed || {},
 };
 });
 },
-[activeRoutineId, selectedDate, routines]
+[activeRoutineId, selectedDate, routines, isDayLocked]
 );
 
 const changeRoutineManually = (routineId) => {
+if (isDayLocked) return;
 setActiveRoutineId(routineId);
 setDiary((prev) => {
 const existing = prev[selectedDate] || { sessions: {}, completed: {} };
@@ -724,6 +778,7 @@ return { ...prev, [activeRoutineId]: list };
 }, [activeRoutineId]);
 
 const updateSessionData = (exIdx, setIdx, field, value) => {
+if (isDayLocked) return;
 const key = `${activeRoutineId}-${exIdx}-s${setIdx}-${field}`;
 const cleaned =
   field === 'w' ? parseWeightInput(value) : normalizeSessionFieldValue(value, 'r');
@@ -743,6 +798,7 @@ function hasSessionValue(v) {
 }
 
 const toggleComplete = (exIdx) => {
+if (isDayLocked) return;
 const key = `${activeRoutineId}-${exIdx}`;
 const todayDiary = diary[selectedDate] || { sessions: {}, completed: {} };
 const markingComplete = !todayDiary.completed[key];
@@ -780,10 +836,14 @@ const displayMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
 // Extraer información actual
 const currentDayData = diary[selectedDate] || { sessions: {}, completed: {} };
-const currentRoutineExercises = useMemo(
-  () => routines[activeRoutineId] || [],
-  [routines, activeRoutineId]
-);
+const currentRoutineExercises = useMemo(() => {
+  const day = diary[selectedDate];
+  const rid = day?.routineId || activeRoutineId;
+  if (isDayLocked && day) {
+    return getLockedDayExercises(day, rid, routines);
+  }
+  return routines[activeRoutineId] || [];
+}, [routines, activeRoutineId, diary, selectedDate, isDayLocked]);
 const currentBlock = routineBlocks.find(r => r.id === activeRoutineId) || activeBlocks[0];
 const currentRoutineName = currentBlock?.name || '';
 
@@ -926,7 +986,8 @@ reader.readAsText(file, 'UTF-8');
     editingExId, setEditingExId,
     editingExData, setEditingExData,
     selectedExIds, setSelectedExIds,
-    timerRemaining, isTimerRunning, isTimerFinished, soundEnabled,
+    isRestTimerOpen, timerRemaining, isTimerRunning, isTimerFinished, soundEnabled,
+    isDayLocked,
     workoutProgress,
     getAlias,
     changeDate,

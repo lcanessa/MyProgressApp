@@ -26,6 +26,11 @@ export function purgeDiaryForExerciseId(diary, routines, exId) {
       continue;
     }
 
+    if (day.locked) {
+      next[dateStr] = day;
+      continue;
+    }
+
     const completed = { ...(day.completed || {}) };
     const sessions = { ...(day.sessions || {}) };
     let changed = false;
@@ -60,6 +65,11 @@ export function remapDiaryForRoutineReorder(diary, routineId, perm, oldCount = p
 
   for (const [dateStr, day] of Object.entries(diary)) {
     if (!day) {
+      next[dateStr] = day;
+      continue;
+    }
+
+    if (day.locked) {
       next[dateStr] = day;
       continue;
     }

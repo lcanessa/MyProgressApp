@@ -7,8 +7,22 @@ import {
 } from '../../utils/sessionValues';
 
 export default function WorkoutTab({ app }) {
+  const locked = app.isDayLocked;
+  const dayRoutineId = app.currentDayData.routineId || app.activeRoutineId;
+
   return (
     <div className="space-y-3 animate-in fade-in duration-300">
+      {locked && (
+        <p
+          className={`text-center text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border ${
+            app.isDark
+              ? 'text-slate-400 bg-white/5 border-white/10'
+              : 'text-slate-500 bg-slate-100 border-slate-200'
+          }`}
+        >
+          Día completado — solo lectura
+        </p>
+      )}
       {app.activeBlocks.length === 0 ? (
         <div
           className={`rounded-3xl p-10 text-center border mt-8 shadow-xl ${app.isDark ? 'bg-[#121212] border-white/5' : 'bg-white border-slate-100'}`}
@@ -41,10 +55,10 @@ export default function WorkoutTab({ app }) {
         </div>
       ) : (
         app.currentRoutineExercises.map((ex, exIdx) => {
-          const exKey = `${app.activeRoutineId}-${exIdx}`;
+          const exKey = `${dayRoutineId}-${exIdx}`;
           const isCompleted = !!app.currentDayData.completed?.[exKey];
           const isExpanded = app.expandedEx === exIdx;
-          const wPrefix = `${app.activeRoutineId}-${exIdx}`;
+          const wPrefix = `${dayRoutineId}-${exIdx}`;
           const numSets = parseInt(ex.sets, 10) || 0;
           const sessions = app.currentDayData.sessions || {};
 
@@ -62,35 +76,48 @@ export default function WorkoutTab({ app }) {
               }`}
             >
               <div
-                className="p-5 flex items-center justify-between cursor-pointer gap-3"
+                className={`p-5 flex items-center justify-between gap-3 ${locked ? 'cursor-default' : 'cursor-pointer'}`}
                 onClick={() => {
-                  if (!isExpanded) app.prefillExerciseIfNeeded?.(exIdx);
+                  if (!isExpanded && !locked) app.prefillExerciseIfNeeded?.(exIdx);
                   app.setExpandedEx(isExpanded ? null : exIdx);
                 }}
               >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    app.toggleComplete(exIdx);
-                  }}
-                  className={`shrink-0 transition-transform hover:scale-110 ${
-                    isCompleted ? 'text-purple-500' : ''
-                  }`}
-                  aria-label={isCompleted ? 'Marcar incompleto' : 'Marcar completo'}
-                >
-                  <CheckCircle2
-                    size={26}
-                    fill={isCompleted ? (app.isDark ? '#050505' : '#ffffff') : 'none'}
-                    className={
-                      isCompleted
-                        ? 'text-purple-500'
-                        : app.isDark
-                          ? 'text-white/10 hover:text-white/30'
-                          : 'text-slate-200 hover:text-slate-400'
-                    }
-                  />
-                </button>
+                {locked ? (
+                  <span
+                    className={`shrink-0 ${isCompleted ? 'text-purple-500' : app.isDark ? 'text-white/10' : 'text-slate-200'}`}
+                    aria-hidden
+                  >
+                    <CheckCircle2
+                      size={26}
+                      fill={isCompleted ? (app.isDark ? '#050505' : '#ffffff') : 'none'}
+                      className={isCompleted ? 'text-purple-500' : ''}
+                    />
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      app.toggleComplete(exIdx);
+                    }}
+                    className={`shrink-0 transition-transform hover:scale-110 ${
+                      isCompleted ? 'text-purple-500' : ''
+                    }`}
+                    aria-label={isCompleted ? 'Marcar incompleto' : 'Marcar completo'}
+                  >
+                    <CheckCircle2
+                      size={26}
+                      fill={isCompleted ? (app.isDark ? '#050505' : '#ffffff') : 'none'}
+                      className={
+                        isCompleted
+                          ? 'text-purple-500'
+                          : app.isDark
+                            ? 'text-white/10 hover:text-white/30'
+                            : 'text-slate-200 hover:text-slate-400'
+                      }
+                    />
+                  </button>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <h3
@@ -119,21 +146,23 @@ export default function WorkoutTab({ app }) {
                       app.openExerciseVideo(ex);
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      app.openRestTimer(90);
-                    }}
-                    className={`p-2 rounded-xl transition-colors border ${
-                      app.isDark
-                        ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/10'
-                        : 'text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-100'
-                    }`}
-                    title="Descansar"
-                  >
-                    <Timer size={18} />
-                  </button>
+                  {!locked && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        app.openRestTimer(90);
+                      }}
+                      className={`p-2 rounded-xl transition-colors border ${
+                        app.isDark
+                          ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/10'
+                          : 'text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-100'
+                      }`}
+                      title="Descansar"
+                    >
+                      <Timer size={18} />
+                    </button>
+                  )}
                   <ChevronDown
                     size={20}
                     className={`transition-transform ${isExpanded ? 'rotate-180' : ''} ${
@@ -144,57 +173,77 @@ export default function WorkoutTab({ app }) {
               </div>
 
               {isExpanded && (
-                <div className={`px-5 pb-5 border-t ${app.isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                <div
+                  className={`px-5 pb-5 border-t ${app.isDark ? 'border-white/5' : 'border-slate-100'} ${locked ? 'select-none' : ''}`}
+                >
                   <div className="space-y-3 mt-4">
-                    {Array.from({ length: numSets }, (_, setIdx) => (
-                      <div key={setIdx} className="flex gap-3 items-center">
-                        <span
-                          className={`w-8 text-center text-xs font-black shrink-0 ${
-                            app.isDark ? 'text-slate-500' : 'text-slate-400'
-                          }`}
-                        >
-                          {setIdx + 1}
-                        </span>
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="—"
-                            value={formatWeightDisplay(sessions[`${wPrefix}-s${setIdx}-w`])}
-                            onChange={(e) => app.updateSessionData(exIdx, setIdx, 'w', e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`w-full text-[16px] font-bold rounded-xl py-2.5 px-3 text-center outline-none border transition-colors ${
-                              app.isDark
-                                ? 'text-white bg-white/5 border-white/10 focus:border-purple-500'
-                                : 'text-purple-600 bg-slate-50 border-slate-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500'
+                    {Array.from({ length: numSets }, (_, setIdx) => {
+                      const weightVal = formatWeightDisplay(sessions[`${wPrefix}-s${setIdx}-w`]);
+                      const repsVal = normalizeSessionFieldValue(
+                        sessions[`${wPrefix}-s${setIdx}-r`],
+                        'r'
+                      );
+                      const cellClass = `w-full text-[16px] font-bold rounded-xl py-2.5 px-3 text-center border ${
+                        app.isDark
+                          ? 'text-white bg-white/5 border-white/10'
+                          : 'text-purple-600 bg-slate-50 border-slate-200'
+                      }`;
+
+                      return (
+                        <div key={setIdx} className="flex gap-3 items-center">
+                          <span
+                            className={`w-8 text-center text-xs font-black shrink-0 ${
+                              app.isDark ? 'text-slate-500' : 'text-slate-400'
                             }`}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="—"
-                            value={normalizeSessionFieldValue(
-                              sessions[`${wPrefix}-s${setIdx}-r`],
-                              'r'
+                          >
+                            {setIdx + 1}
+                          </span>
+                          <div className="flex-1">
+                            {locked ? (
+                              <div className={cellClass}>{weightVal || '—'}</div>
+                            ) : (
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="—"
+                                value={weightVal}
+                                onChange={(e) =>
+                                  app.updateSessionData(exIdx, setIdx, 'w', e.target.value)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                className={`${cellClass} outline-none transition-colors focus:border-purple-500 ${
+                                  !app.isDark ? 'focus:ring-1 focus:ring-purple-500' : ''
+                                }`}
+                              />
                             )}
-                            onChange={(e) => app.updateSessionData(exIdx, setIdx, 'r', e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`w-full text-[16px] font-bold rounded-xl py-2.5 px-3 text-center outline-none border transition-colors ${
-                              app.isDark
-                                ? 'text-white bg-white/5 border-white/10 focus:border-purple-500'
-                                : 'text-purple-600 bg-slate-50 border-slate-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500'
-                            }`}
-                          />
+                          </div>
+                          <div className="flex-1">
+                            {locked ? (
+                              <div className={cellClass}>{repsVal || '—'}</div>
+                            ) : (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="—"
+                                value={repsVal}
+                                onChange={(e) =>
+                                  app.updateSessionData(exIdx, setIdx, 'r', e.target.value)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                className={`${cellClass} outline-none transition-colors focus:border-purple-500 ${
+                                  !app.isDark ? 'focus:ring-1 focus:ring-purple-500' : ''
+                                }`}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <ExerciseProgressChart
                     exerciseName={ex.customName}
-                    routineId={app.activeRoutineId}
+                    routineId={dayRoutineId}
                     diary={app.diary}
                     routines={app.routines}
                     isDark={app.isDark}

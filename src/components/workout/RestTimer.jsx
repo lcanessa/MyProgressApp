@@ -9,6 +9,7 @@ const REST_PRESETS = [
 ];
 
 export default function RestTimer({
+  isOpen,
   isRunning,
   timeRemaining,
   isFinished,
@@ -27,11 +28,15 @@ export default function RestTimer({
   const dragOffset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
+    if (!isOpen) {
+      setPos({ x: -1, y: -1 });
+      return;
+    }
     if (timerRef.current && pos.x === -1) {
       const rect = timerRef.current.getBoundingClientRect();
       setPos({ x: Math.max(0, (window.innerWidth - rect.width) / 2), y: 140 });
     }
-  }, [pos.x, isRunning, isFinished]);
+  }, [isOpen, pos.x, isRunning, isFinished]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -47,7 +52,7 @@ export default function RestTimer({
     return () => window.removeEventListener('resize', handleResize);
   }, [pos.x]);
 
-  if (!isRunning && timeRemaining === 0 && !isFinished) return null;
+  if (!isOpen) return null;
 
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
@@ -79,7 +84,7 @@ export default function RestTimer({
 
   const baseStyle =
     pos.x === -1
-      ? { top: '140px', left: '50%', transform: 'translateX(-50%)', opacity: 0, touchAction: 'none' }
+      ? { top: '140px', left: '50%', transform: 'translateX(-50%)', touchAction: 'none' }
       : { left: `${pos.x}px`, top: `${pos.y}px`, touchAction: 'none' };
 
   const chipClass = (sec) =>

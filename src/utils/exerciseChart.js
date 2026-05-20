@@ -17,6 +17,9 @@ export function getExerciseProgressChart(exerciseName, routineId, diary, routine
     const exIdx = exercises.findIndex((ex) => ex.customName === exerciseName);
     if (exIdx === -1) return;
 
+    const completeKey = `${routineId}-${exIdx}`;
+    if (dayData.completed?.[completeKey] !== true) return;
+
     const ex = exercises[exIdx];
     let maxWeight = 0;
     let repsAtMaxWeight = 0;
