@@ -6,9 +6,26 @@ import {
   normalizeSessionFieldValue,
 } from '../../utils/sessionValues';
 
+function selectInputValue(el) {
+  if (!el) return;
+  requestAnimationFrame(() => {
+    el.select?.();
+    try {
+      el.setSelectionRange(0, el.value.length);
+    } catch {
+      /* algunos navegadores no lo permiten en type=text */
+    }
+  });
+}
+
 export default function WorkoutTab({ app }) {
   const locked = app.isDayLocked;
   const dayRoutineId = app.currentDayData.routineId || app.activeRoutineId;
+
+  const handleSessionInputFocus = (e) => {
+    e.stopPropagation();
+    selectInputValue(e.target);
+  };
 
   return (
     <div className="space-y-3 animate-in fade-in duration-300">
@@ -210,7 +227,8 @@ export default function WorkoutTab({ app }) {
                                 onChange={(e) =>
                                   app.updateSessionData(exIdx, setIdx, 'w', e.target.value)
                                 }
-                                onClick={(e) => e.stopPropagation()}
+                                onFocus={handleSessionInputFocus}
+                                onClick={handleSessionInputFocus}
                                 className={`${cellClass} outline-none transition-colors focus:border-purple-500 ${
                                   !app.isDark ? 'focus:ring-1 focus:ring-purple-500' : ''
                                 }`}
@@ -229,7 +247,8 @@ export default function WorkoutTab({ app }) {
                                 onChange={(e) =>
                                   app.updateSessionData(exIdx, setIdx, 'r', e.target.value)
                                 }
-                                onClick={(e) => e.stopPropagation()}
+                                onFocus={handleSessionInputFocus}
+                                onClick={handleSessionInputFocus}
                                 className={`${cellClass} outline-none transition-colors focus:border-purple-500 ${
                                   !app.isDark ? 'focus:ring-1 focus:ring-purple-500' : ''
                                 }`}
