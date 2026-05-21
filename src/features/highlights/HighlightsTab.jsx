@@ -14,6 +14,8 @@ import HighlightStatCard from '../../components/highlights/HighlightStatCard';
 import WeeklyActivityChart from '../../components/highlights/WeeklyActivityChart';
 import Last7DaysStrip from '../../components/highlights/Last7DaysStrip';
 import PersonalRecordsCard from '../../components/highlights/PersonalRecordsCard';
+import HomeGreeting from '../../components/highlights/HomeGreeting';
+import MuscleRadarChart from '../../components/highlights/MuscleRadarChart';
 
 export default function HighlightsTab({ app }) {
   const stats = useMemo(
@@ -25,17 +27,20 @@ export default function HighlightsTab({ app }) {
 
   if (!stats.hasData) {
     return (
-      <div className="flex flex-col items-center justify-center text-center w-full min-h-[min(50vh,22rem)] px-6 py-12">
-        <div
-          className={`w-full max-w-[17rem] mx-auto rounded-3xl border p-8 flex flex-col items-center ${isDark ? 'bg-[#121212]/80 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}
-        >
-          <Award size={40} className={`mb-4 shrink-0 ${isDark ? 'text-purple-500/40' : 'text-purple-300'}`} />
-          <p className={`font-black text-sm w-full ${isDark ? 'text-white' : 'text-slate-800'}`}>
-            Todavía no hay destacados
-          </p>
-          <p className={`text-xs mt-2 leading-relaxed w-full ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-            Completá ejercicios en Entreno y acá vas a ver rachas, récords y tu actividad semanal.
-          </p>
+      <div className="space-y-6 animate-in fade-in duration-300 pb-2">
+        <HomeGreeting app={app} weekStreak={0} />
+        <div className="flex flex-col items-center justify-center text-center w-full px-2 py-6">
+          <div
+            className={`w-full max-w-[17rem] mx-auto rounded-3xl border p-8 flex flex-col items-center ${isDark ? 'bg-[#121212]/80 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}
+          >
+            <Award size={40} className={`mb-4 shrink-0 ${isDark ? 'text-purple-500/40' : 'text-purple-300'}`} />
+            <p className={`font-black text-sm w-full ${isDark ? 'text-white' : 'text-slate-800'}`}>
+              Tu progreso aparece acá
+            </p>
+            <p className={`text-xs mt-2 leading-relaxed w-full ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              Completá ejercicios en Entreno y vas a ver rachas, récords y tu actividad semanal.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -43,7 +48,9 @@ export default function HighlightsTab({ app }) {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-2">
-      {/* Hero racha */}
+      <HomeGreeting app={app} weekStreak={stats.weekStreak} />
+
+      {/* Hero racha semanal */}
       <div
         className={`relative overflow-hidden rounded-3xl border p-5 ${
           isDark
@@ -66,24 +73,28 @@ export default function HighlightsTab({ app }) {
               Racha actual
             </p>
             <p className={`text-4xl font-black tabular-nums leading-none mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {stats.dayStreak}
+              {stats.weekStreak}
               <span className={`text-lg ml-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {stats.dayStreak === 1 ? 'día' : 'días'}
+                {stats.weekStreak === 1 ? 'semana' : 'semanas'}
               </span>
             </p>
             <p className={`text-[11px] mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {stats.weekStreak > 0
-                ? `${stats.weekStreak} ${stats.weekStreak === 1 ? 'semana' : 'semanas'} seguidas entrenando`
-                : 'Seguí sumando días'}
+                ? 'Con al menos 1 entreno por semana (lun–dom)'
+                : 'Entrená un día esta semana para empezar tu racha'}
             </p>
           </div>
         </div>
-        {stats.bestDayStreak > stats.dayStreak && (
+        {stats.bestWeekStreak > stats.weekStreak && (
           <p className={`relative text-[10px] mt-3 font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
-            Tu mejor racha: {stats.bestDayStreak} días
+            Tu mejor racha: {stats.bestWeekStreak} {stats.bestWeekStreak === 1 ? 'semana' : 'semanas'}
           </p>
         )}
       </div>
+
+      {stats.muscleRadar.hasTraining && (
+        <MuscleRadarChart radar={stats.muscleRadar} isDark={isDark} />
+      )}
 
       <Last7DaysStrip days={stats.last7Days} isDark={isDark} />
 
@@ -136,22 +147,6 @@ export default function HighlightsTab({ app }) {
           accent="purple"
         />
       </div>
-
-      {stats.topMuscle && (
-        <div
-          className={`rounded-2xl border px-4 py-3 flex items-center gap-3 ${isDark ? 'bg-[#121212]/80 border-white/10' : 'bg-white border-slate-200'}`}
-        >
-          <Award size={20} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
-          <div>
-            <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-              Músculo más trabajado
-            </p>
-            <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-800'}`}>
-              {stats.topMuscle[0]} · {stats.topMuscle[1]} ejercicios
-            </p>
-          </div>
-        </div>
-      )}
 
       <WeeklyActivityChart weeks={stats.weeklyActivity} maxDays={stats.maxWeekDays} isDark={isDark} />
     </div>

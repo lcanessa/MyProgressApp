@@ -1,6 +1,9 @@
 import { toLocalISODate } from './date';
 import { parseWeightNumber } from './sessionValues';
 
+/** Grupos del gráfico radar (sin Cardio/Otro). */
+export const RADAR_MUSCLE_GROUPS = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core'];
+
 function parseDate(dateStr) {
   return new Date(`${dateStr}T12:00:00`);
 }
@@ -73,28 +76,17 @@ function isDayFullyComplete(day, routines) {
   return exercises.every((_, i) => day.completed?.[`${rid}-${i}`] === true);
 }
 
-function computeStreakEndingAt(trainingSet, endDate) {
-  let streak = 0;
-  let cursor = endDate;
-  if (!trainingSet.has(cursor)) {
-    cursor = addDays(cursor, -1);
-  }
-  while (trainingSet.has(cursor)) {
-    streak += 1;
-    cursor = addDays(cursor, -1);
-  }
-  return streak;
-}
-
-function longestDayStreak(trainingDates) {
-  if (!trainingDates.length) return 0;
+/** Mejor racha histórica de semanas consecutivas (lun–dom) con al menos un entreno. */
+function longestWeekStreak(trainingDates) {
+  const weekKeys = [...new Set(trainingDates.map(getWeekKey))].sort();
+  if (!weekKeys.length) return 0;
   let best = 1;
   let run = 1;
-  for (let i = 1; i < trainingDates.length; i += 1) {
-    const prev = parseDate(trainingDates[i - 1]);
-    const curr = parseDate(trainingDates[i]);
+  for (let i = 1; i < weekKeys.length; i += 1) {
+    const prev = parseDate(weekKeys[i - 1]);
+    const curr = parseDate(weekKeys[i]);
     const diffDays = Math.round((curr - prev) / 86400000);
-    if (diffDays === 1) {
+    if (diffDays === 7) {
       run += 1;
       best = Math.max(best, run);
     } else {
@@ -140,6 +132,27 @@ function getMuscleBreakdown(diary, routines, library) {
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   return { top: sorted[0] || null, counts };
+}
+
+/** Datos normalizados para el gráfico radar de balance muscular. */
+export function buildMuscleRadar(muscleCounts) {
+  const values = RADAR_MUSCLE_GROUPS.map((label) => muscleCounts[label] || 0);
+  const max = Math.max(1, ...values);
+  const total = values.reduce((sum, n) => sum + n, 0);
+
+  const axes = RADAR_MUSCLE_GROUPS.map((label, i) => ({
+    label,
+    count: values[i],
+    normalized: values[i] / max,
+  }));
+
+  const minCount = Math.min(...values);
+  const maxCount = Math.max(...values);
+  const weakest =
+    total > 0 ? axes.find((a) => a.count === minCount) ?? null : null;
+  const isBalanced = total > 0 && maxCount === minCount;
+
+  return { axes, total, weakest, isBalanced, hasTraining: total > 0 };
 }
 
 function getWeeklyActivity(diary, weeks = 8) {
@@ -245,7 +258,6 @@ function countMonthTrainingDays(diary, year, month) {
 export function computeHighlights({ diary, routines, library }) {
   const today = toLocalISODate(new Date());
   const trainingDates = getTrainingDates(diary);
-  const trainingSet = new Set(trainingDates);
   const weekSet = new Set(trainingDates.map(getWeekKey));
 
   let perfectDays = 0;
@@ -262,17 +274,15 @@ export function computeHighlights({ diary, routines, library }) {
   return {
     hasData: trainingDates.length > 0,
     today,
-    dayStreak: computeStreakEndingAt(trainingSet, today),
-    bestDayStreak: longestDayStreak(trainingDates),
     weekStreak: computeWeekStreak(weekSet, today),
+    bestWeekStreak: longestWeekStreak(trainingDates),
     totalExercisesCompleted: countCompletedExercises(diary),
     totalTrainingDays: trainingDates.length,
     perfectDays,
     setsLogged: countSetsLogged(diary),
     volumeKg: sumVolumeKg(diary),
     monthTrainingDays: countMonthTrainingDays(diary, now.getFullYear(), now.getMonth()),
-    topMuscle: muscle.top,
-    muscleCounts: muscle.counts,
+    muscleRadar: buildMuscleRadar(muscle.counts),
     weeklyActivity,
     maxWeekDays,
     last7Days: getLast7DaysActivity(diary, routines, today),
