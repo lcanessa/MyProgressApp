@@ -1,6 +1,6 @@
 import { MOCK_LIBRARY } from './defaults';
 
-export const RECOMMENDED_ROUTINES_LOADED_KEY = 'myprogress_recommended_loaded_v1';
+export const RECOMMENDED_ROUTINES_LOADED_KEY = 'myprogress_test_recommended_loaded_v1';
 
 export const RECOMMENDED_BLOCKS = [
   { id: 'r1', name: 'Empuje (Pecho/Tríceps)' },

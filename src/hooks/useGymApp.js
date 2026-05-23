@@ -145,7 +145,7 @@ const [isTimerFinished, setIsTimerFinished] = useState(false);
 const [soundEnabled, setSoundEnabled] = useState(true);
 const isTimerRunningRef = useRef(false);
 const soundEnabledRef = useRef(true);
-const TIMER_END_KEY = 'myprogress_timer_end_ts';
+const TIMER_END_KEY = 'myprogress_test_timer_end_ts';
 
 const todayISO = getTodayISO();
 
